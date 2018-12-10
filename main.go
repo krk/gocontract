@@ -195,7 +195,25 @@ func parseStructs(file *ast.File) (structs []structInfo, err error) {
 				AssignmentRequired: map[string]map[string]struct{}{},
 			}
 			for _, option := range tag.Options {
-				methods := info.AssignmentRequired[item.Names[0].Name]
+				var name string
+				if len(item.Names) > 0 {
+					name = item.Names[0].Name
+				} else {
+					// Inherited type.
+					switch n := item.Type.(type) {
+					case *ast.Ident:
+						name = n.Name
+					case *ast.StarExpr:
+						switch x := n.X.(type) {
+						case *ast.Ident:
+							name = x.Name
+						case *ast.SelectorExpr:
+							name = x.Sel.Name
+						}
+					}
+				}
+
+				methods := info.AssignmentRequired[name]
 				if methods == nil {
 					methods = map[string]struct{}{}
 				}
@@ -203,7 +221,7 @@ func parseStructs(file *ast.File) (structs []structInfo, err error) {
 				methodName := strings.TrimSpace(option)
 				methods[methodName] = struct{}{}
 
-				info.AssignmentRequired[item.Names[0].Name] = methods
+				info.AssignmentRequired[name] = methods
 			}
 			structs = append(structs, info)
 		}
